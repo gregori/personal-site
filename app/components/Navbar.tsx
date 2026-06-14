@@ -38,20 +38,20 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a
           href="#"
-          className="group text-lg font-semibold tracking-tight"
+          className="group text-lg font-semibold tracking-tight shrink-0"
         >
           <span className="gradient-text">RG</span>
-          <span className="ml-2 text-sm text-muted transition-opacity group-hover:opacity-100 opacity-0">
+          <span className="ml-2 text-sm text-muted transition-opacity group-hover:opacity-100 opacity-0 hidden sm:inline">
             Rodrigo Gregori
           </span>
         </a>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0 sm:gap-1 overflow-x-auto">
           {sections.map((id) => (
             <a
               key={id}
               href={`#${id}`}
-              className={`relative px-4 py-2 text-sm font-medium transition-colors duration-300 ${
+              className={`relative px-2 sm:px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors duration-300 ${
                 activeSection === id
                   ? "text-accent"
                   : "text-muted hover:text-foreground"
@@ -64,7 +64,7 @@ export default function Navbar() {
             </a>
           ))}
 
-          <div className="ml-4 flex items-center gap-1 border-l border-card-border pl-4">
+          <div className="ml-2 sm:ml-4 flex items-center gap-1 border-l border-card-border pl-2 sm:pl-4 shrink-0">
             <button
               onClick={() => setLang("en")}
               type="button"
