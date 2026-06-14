@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { profile } from "@/app/data/profile";
 
 const systemPromptEn = `You are a Digital Twin of ${profile.name} — an AI that answers questions about his career, skills, experience, and background. Only answer based on the facts below. If asked something not covered here, say you don't have that information.
@@ -76,14 +77,64 @@ Seja profissional, humilde e direto. Use "eu" ao se referir ao que ele fez (ex: 
 ## Idioma
 Sempre responda em português brasileiro.`;
 
+const chatRequestSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1),
+      })
+    )
+    .min(1)
+    .max(50),
+  lang: z.enum(["en", "pt"]).optional().default("en"),
+});
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 20;
+
+const rateLimitStore = new Map<string, number[]>();
+
+function rateLimit(ip: string): { allowed: boolean; remaining: number; reset: number } {
+  const now = Date.now();
+  const timestamps = rateLimitStore.get(ip) ?? [];
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0, reset: recent[0] + RATE_LIMIT_WINDOW_MS };
+  }
+
+  recent.push(now);
+  rateLimitStore.set(ip, recent);
+  return { allowed: true, remaining: RATE_LIMIT_MAX - recent.length, reset: now + RATE_LIMIT_WINDOW_MS };
+}
+
 export async function POST(req: Request) {
   try {
-    const { messages, lang } = await req.json();
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "anonymous";
 
-    if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: "messages array required" }), { status: 400 });
+    const { allowed, remaining, reset } = rateLimit(ip);
+
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Too many requests. Please wait before sending another message." }), {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((reset - Date.now()) / 1000)),
+          "X-RateLimit-Remaining": "0",
+        },
+      });
     }
 
+    const parsed = chatRequestSchema.safeParse(await req.json());
+
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: parsed.error.issues[0].message }), { status: 400 });
+    }
+
+    const { messages, lang } = parsed.data;
     const systemPrompt = lang === "pt" ? systemPromptPt : systemPromptEn;
 
     const body = JSON.stringify({
@@ -114,6 +165,7 @@ export async function POST(req: Request) {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        "X-RateLimit-Remaining": String(remaining),
       },
     });
   } catch (err) {

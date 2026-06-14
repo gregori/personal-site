@@ -15,7 +15,7 @@ function SkillBadge({ name }: { name: string }) {
 
 export default function About() {
   const sectionRef = useRef<HTMLElement>(null);
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const section = sectionRef.current;

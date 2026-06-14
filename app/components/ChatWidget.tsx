@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "@/app/contexts/LanguageContext";
 
 type Message = {
@@ -27,36 +27,24 @@ function ChatMessage({ msg }: { msg: Message }) {
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { lang, t } = useLanguage();
 
-  const prevLang = useRef(lang);
+  const greeting = useMemo(
+    () => ({ role: "assistant" as const, content: t.chat.greeting }),
+    [t.chat.greeting]
+  );
+  const allMessages = useMemo(() => [greeting, ...chatMessages], [greeting, chatMessages]);
 
   useEffect(() => {
-    if (prevLang.current !== lang) {
-      prevLang.current = lang;
-      if (messages.length === 1 && messages[0].role === "assistant") {
-        setMessages([{ role: "assistant", content: t.chat.greeting }]);
-      }
-    }
-  }, [lang, messages, t.chat.greeting]);
-
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{ role: "assistant", content: t.chat.greeting }]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (messages.length > 0) {
+    if (allMessages.length > 0) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [allMessages]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -67,19 +55,22 @@ export default function ChatWidget() {
     if (!text || loading) return;
     setInput("");
 
-    const newMessages: Message[] = [...messages, { role: "user", content: text }];
-    setMessages(newMessages);
+    const userMessage: Message = { role: "user", content: text };
+    const newChatMessages: Message[] = [...chatMessages, userMessage];
+    setChatMessages(newChatMessages);
     setLoading(true);
 
     const controller = new AbortController();
-    setAbortController(controller);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: [
+            { role: "assistant", content: t.chat.greeting },
+            ...newChatMessages,
+          ].map((m) => ({ role: m.role, content: m.content })),
           lang: lang,
         }),
         signal: controller.signal,
@@ -96,7 +87,7 @@ export default function ChatWidget() {
       const decoder = new TextDecoder();
       let assistantContent = "";
 
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      setChatMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -114,7 +105,7 @@ export default function ChatWidget() {
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) {
                 assistantContent += delta;
-                setMessages((prev) => {
+                setChatMessages((prev) => {
                   const next = [...prev];
                   next[next.length - 1] = { role: "assistant", content: assistantContent };
                   return next;
@@ -128,15 +119,14 @@ export default function ChatWidget() {
       }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      setMessages((prev) => [
+      setChatMessages((prev) => [
         ...prev,
         { role: "assistant", content: t.chat.error },
       ]);
     } finally {
       setLoading(false);
-      setAbortController(null);
     }
-  }, [input, messages, loading, t.chat.error]);
+  }, [input, chatMessages, loading, lang, t.chat.error, t.chat.greeting]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -146,7 +136,7 @@ export default function ChatWidget() {
   };
 
   const clearChat = () => {
-    setMessages([{ role: "assistant", content: t.chat.greeting }]);
+    setChatMessages([]);
   };
 
   return (
@@ -200,7 +190,7 @@ export default function ChatWidget() {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 px-5 py-4 max-h-[400px] min-h-[200px]">
-            {messages.map((msg, i) => (
+            {allMessages.map((msg, i) => (
               <ChatMessage key={i} msg={msg} />
             ))}
             <div ref={bottomRef} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import type { Lang, Translation } from "@/app/i18n/translations";
 import { translations } from "@/app/i18n/translations";
 
@@ -13,29 +13,18 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("en");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("lang") as Lang | null;
-    if (saved === "en" || saved === "pt") {
-      setLangState(saved);
+  const [lang, setLangState] = useState<Lang>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lang");
+      if (saved === "en" || saved === "pt") return saved;
     }
-    setMounted(true);
-  }, []);
+    return "en";
+  });
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     localStorage.setItem("lang", l);
   }, []);
-
-  if (!mounted) {
-    return (
-      <LanguageContext.Provider value={{ lang: "en", setLang, t: translations.en }}>
-        {children}
-      </LanguageContext.Provider>
-    );
-  }
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t: translations[lang] }}>
