@@ -1,23 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
-const navItems = [
-  { label: "About", href: "#about" },
-  { label: "Journey", href: "#journey" },
-  { label: "Portfolio", href: "#portfolio" },
-];
+const sections = ["about", "journey", "portfolio"];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const { lang, setLang, t } = useLanguage();
 
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 60);
 
-      const sections = navItems.map((item) => item.href.slice(1));
-      for (const id of sections.reverse()) {
+      for (const id of [...sections].reverse()) {
         const el = document.getElementById(id);
         if (el && el.getBoundingClientRect().top <= 200) {
           setActiveSection(id);
@@ -50,22 +47,44 @@ export default function Navbar() {
         </a>
 
         <div className="flex items-center gap-1">
-          {navItems.map((item) => (
+          {sections.map((id) => (
             <a
-              key={item.href}
-              href={item.href}
+              key={id}
+              href={`#${id}`}
               className={`relative px-4 py-2 text-sm font-medium transition-colors duration-300 ${
-                activeSection === item.href.slice(1)
+                activeSection === id
                   ? "text-accent"
                   : "text-muted hover:text-foreground"
               }`}
             >
-              {item.label}
-              {activeSection === item.href.slice(1) && (
+              {t.nav[id as keyof typeof t.nav]}
+              {activeSection === id && (
                 <span className="absolute bottom-0 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full bg-accent" />
               )}
             </a>
           ))}
+
+          <div className="ml-4 flex items-center gap-1 border-l border-card-border pl-4">
+            <button
+              onClick={() => setLang("en")}
+              type="button"
+              className={`text-xs font-medium px-2 py-1 rounded transition-colors ${
+                lang === "en" ? "text-accent" : "text-muted hover:text-foreground"
+              }`}
+            >
+              EN
+            </button>
+            <span className="text-muted/40 text-xs">|</span>
+            <button
+              onClick={() => setLang("pt")}
+              type="button"
+              className={`text-xs font-medium px-2 py-1 rounded transition-colors ${
+                lang === "pt" ? "text-accent" : "text-muted hover:text-foreground"
+              }`}
+            >
+              PT
+            </button>
+          </div>
         </div>
       </div>
     </nav>

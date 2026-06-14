@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 type Message = {
   role: "user" | "assistant";
@@ -26,23 +27,35 @@ function ChatMessage({ msg }: { msg: Message }) {
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Hi! I'm Rodrigo's Digital Twin. Ask me anything about his career, skills, or experience.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [abortController, setAbortController] =
-    useState<AbortController | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { lang, t } = useLanguage();
+
+  const prevLang = useRef(lang);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (prevLang.current !== lang) {
+      prevLang.current = lang;
+      if (messages.length === 1 && messages[0].role === "assistant") {
+        setMessages([{ role: "assistant", content: t.chat.greeting }]);
+      }
+    }
+  }, [lang, messages, t.chat.greeting]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{ role: "assistant", content: t.chat.greeting }]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -54,10 +67,7 @@ export default function ChatWidget() {
     if (!text || loading) return;
     setInput("");
 
-    const newMessages: Message[] = [
-      ...messages,
-      { role: "user", content: text },
-    ];
+    const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
     setLoading(true);
 
@@ -69,10 +79,8 @@ export default function ChatWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          lang: lang,
         }),
         signal: controller.signal,
       });
@@ -108,10 +116,7 @@ export default function ChatWidget() {
                 assistantContent += delta;
                 setMessages((prev) => {
                   const next = [...prev];
-                  next[next.length - 1] = {
-                    role: "assistant",
-                    content: assistantContent,
-                  };
+                  next[next.length - 1] = { role: "assistant", content: assistantContent };
                   return next;
                 });
               }
@@ -125,16 +130,13 @@ export default function ChatWidget() {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "Sorry, I couldn't reach my brain. Please try again.",
-        },
+        { role: "assistant", content: t.chat.error },
       ]);
     } finally {
       setLoading(false);
       setAbortController(null);
     }
-  }, [input, messages, loading]);
+  }, [input, messages, loading, t.chat.error]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -143,9 +145,12 @@ export default function ChatWidget() {
     }
   };
 
+  const clearChat = () => {
+    setMessages([{ role: "assistant", content: t.chat.greeting }]);
+  };
+
   return (
     <>
-      {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
         type="button"
@@ -153,37 +158,16 @@ export default function ChatWidget() {
         aria-label="Toggle Digital Twin chat"
       >
         {open ? (
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-            />
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
           </svg>
         )}
       </button>
 
-      {/* Chat panel */}
       <div
         className={`fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] origin-bottom-right transition-all duration-300 ease-out ${
           open
@@ -192,53 +176,29 @@ export default function ChatWidget() {
         }`}
       >
         <div className="flex flex-col overflow-hidden rounded-2xl border border-card-border bg-background/95 backdrop-blur-xl shadow-2xl">
-          {/* Header */}
           <div className="flex items-center gap-3 border-b border-card-border px-5 py-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-purple text-[10px] font-bold text-background">
               RG
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">
-                Digital Twin
-              </p>
+              <p className="text-sm font-semibold text-foreground">{t.chat.title}</p>
               <p className="text-[10px] text-muted flex items-center gap-1.5">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${loading ? "bg-accent animate-pulse-glow" : "bg-green-400"}`}
-                />
-                {loading ? "Thinking..." : "Online"}
+                <span className={`h-1.5 w-1.5 rounded-full ${loading ? "bg-accent animate-pulse-glow" : "bg-green-400"}`} />
+                {loading ? t.chat.thinking : t.chat.online}
               </p>
             </div>
             <button
-              onClick={() =>
-                setMessages([
-                  {
-                    role: "assistant",
-                    content:
-                      "Hi! I'm Rodrigo's Digital Twin. Ask me anything about his career, skills, or experience.",
-                  },
-                ])
-              }
+              onClick={clearChat}
               type="button"
               className="ml-auto text-xs text-muted hover:text-foreground transition-colors"
               title="Clear conversation"
             >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-3 px-5 py-4 max-h-[400px] min-h-[200px]">
             {messages.map((msg, i) => (
               <ChatMessage key={i} msg={msg} />
@@ -246,7 +206,6 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
           <div className="border-t border-card-border px-4 py-3">
             <div className="flex items-center gap-2 rounded-xl border border-card-border bg-card/50 px-3 py-2 focus-within:border-accent/40 transition-colors">
               <input
@@ -255,7 +214,7 @@ export default function ChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about my career..."
+                placeholder={t.chat.placeholder}
                 disabled={loading}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder-muted outline-none disabled:opacity-50"
               />
@@ -266,18 +225,8 @@ export default function ChatWidget() {
                 className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-background transition-opacity hover:opacity-90 disabled:opacity-30"
                 aria-label="Send message"
               >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 12h14M12 5l7 7-7 7"
-                  />
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </button>
             </div>

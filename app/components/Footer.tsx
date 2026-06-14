@@ -1,37 +1,38 @@
+"use client";
+
 import { profile } from "@/app/data/profile";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export default function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="relative border-t border-card-border bg-background">
-      {/* Top gradient line */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
 
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="flex flex-col items-center justify-between gap-8 sm:flex-row">
-          {/* Left */}
           <div className="text-center sm:text-left">
             <a href="#" className="text-lg font-semibold tracking-tight gradient-text">
               RG
             </a>
             <p className="mt-1 text-sm text-muted">
-              {profile.title} at {profile.company}
+              {profile.title} {t.footer.at} {profile.company}
             </p>
           </div>
 
-          {/* Center - quick links */}
           <div className="flex items-center gap-6">
             <a href="#about" className="text-xs text-muted transition-colors hover:text-foreground">
-              About
+              {t.nav.about}
             </a>
             <a href="#journey" className="text-xs text-muted transition-colors hover:text-foreground">
-              Journey
+              {t.nav.journey}
             </a>
             <a href="#portfolio" className="text-xs text-muted transition-colors hover:text-foreground">
-              Portfolio
+              {t.nav.portfolio}
             </a>
           </div>
 
-          {/* Right */}
           <div className="flex items-center gap-4">
             <a
               href={`mailto:${profile.email}`}
@@ -54,7 +55,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t border-card-border pt-6 text-center text-xs text-muted">
-          <p>&copy; {new Date().getFullYear()} Rodrigo Gregori. Crafted with purpose.</p>
+          <p>&copy; {new Date().getFullYear()} Rodrigo Gregori. {t.footer.crafted}</p>
         </div>
       </div>
     </footer>

@@ -26,8 +26,8 @@ export const profile = {
     { name: "English", level: "Full Professional" },
     { name: "Spanish", level: "Limited Working" },
     { name: "German", level: "Limited Working" },
-    { name: "Japanese", level: "Elementary" },
-    { name: "Chinese", level: "Elementary" },
+    { name: "Japanese", level: "Limited Working" },
+    { name: "French", level: "Limited Working" },
   ],
   experiences: [
     {
